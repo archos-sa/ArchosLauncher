@@ -1415,16 +1415,7 @@ public class Launcher extends Activity
          */
         public void onScrollInteractionEnd();
 
-        /**
-         * Scroll progress, between 0 and 100, when the user scrolls beyond the leftmost
-         * screen (or in the case of RTL, the rightmost screen).
-         */
-        public void onScrollChange(int progress, boolean rtl);
-
-        /**
-         * Screen has stopped scrolling
-         */
-        public void onScrollSettled();
+        public void onScrollChange(float progress, boolean rtl);
 
         /**
          * This method can be called by the Launcher in order to force the LauncherOverlay
@@ -1446,6 +1437,9 @@ public class Launcher extends Activity
     }
 
     public interface LauncherOverlayCallbacks {
+
+        public void onScrollChanged(float progress);
+
         /**
          * This method indicates whether a call to {@link #enterFullImmersion()} will succeed,
          * however it doesn't modify any state within the launcher.
@@ -1471,6 +1465,12 @@ public class Launcher extends Activity
     }
 
     class LauncherOverlayCallbacksImpl implements LauncherOverlayCallbacks {
+
+        public void onScrollChanged(float progress) {
+            if (mWorkspace != null) {
+                mWorkspace.onOverlayScrollChanged(progress);
+            }
+        }
 
         @Override
         public boolean canEnterFullImmersion() {
@@ -2128,6 +2128,10 @@ public class Launcher extends Activity
         setupTransparentSystemBarsForLollipop();
         mAttached = true;
         mVisible = true;
+
+        if (mLauncherCallbacks != null) {
+            mLauncherCallbacks.onAttachedToWindow();
+        }
     }
 
     /**
@@ -2160,6 +2164,10 @@ public class Launcher extends Activity
             mAttached = false;
         }
         updateAutoAdvanceState();
+
+        if (mLauncherCallbacks != null) {
+            mLauncherCallbacks.onDetachedFromWindow();
+        }
     }
 
     public void onWindowVisibilityChanged(int visibility) {

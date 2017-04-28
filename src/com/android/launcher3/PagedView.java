@@ -556,9 +556,13 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
         super.setOnLongClickListener(l);
     }
 
+    protected int getUnboundedScrollX() {
+        return getScrollX();
+    }
+
     @Override
     public void scrollBy(int x, int y) {
-        scrollTo(getScrollX() + x, getScrollY() + y);
+        scrollTo(getUnboundedScrollX() + x, getScrollY() + y);
     }
 
     @Override
@@ -2018,7 +2022,7 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
         int halfScreenSize = getViewportWidth() / 2;
 
         final int newX = getScrollForPage(whichPage);
-        int delta = newX - getScrollX();
+        int delta = newX - getUnboundedScrollX();
         int duration = 0;
 
         if (Math.abs(velocity) < mMinFlingVelocity) {
@@ -2068,7 +2072,7 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
         whichPage = validateNewPage(whichPage);
 
         int newX = getScrollForPage(whichPage);
-        final int delta = newX - getScrollX();
+        final int delta = newX - getUnboundedScrollX();
         snapToPage(whichPage, delta, duration, immediate, interpolator);
     }
 
@@ -2105,7 +2109,7 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
             mScroller.setInterpolator(mDefaultInterpolator);
         }
 
-        mScroller.startScroll(getScrollX(), 0, delta, 0, duration);
+        mScroller.startScroll(getUnboundedScrollX(), 0, delta, 0, duration);
 
         updatePageIndicator();
 

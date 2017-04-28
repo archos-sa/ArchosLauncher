@@ -100,6 +100,16 @@ public class LauncherExtension extends Launcher {
         }
 
         @Override
+        public void onAttachedToWindow() {
+
+        }
+
+        @Override
+        public void onDetachedFromWindow() {
+
+        }
+
+        @Override
         public boolean onPrepareOptionsMenu(Menu menu) {
             return false;
         }
@@ -318,13 +328,6 @@ public class LauncherExtension extends Launcher {
                 }
             }
 
-            @Override
-            public void onScrollChange(int progress, boolean rtl) {
-                mProgress = progress;
-                if (mShowOverlayFeedback) {
-                    updatePanelOffset(progress);
-                }
-            }
 
             private void updatePanelOffset(int progress) {
                 int panelWidth = mSearchOverlay.getMeasuredWidth();
@@ -349,13 +352,8 @@ public class LauncherExtension extends Launcher {
             }
 
             @Override
-            public void onScrollSettled() {
-                if (mShowOverlayFeedback) {
-                    mSearchOverlay.setVisibility(View.INVISIBLE);
-                    mSearchOverlay.setLayerType(View.LAYER_TYPE_NONE, null);
-                }
-                mShowOverlayFeedback = false;
-                mProgress = 0;
+            public void onScrollChange(float progress, boolean rtl) {
+
             }
 
             public void hideOverlayPanel() {
