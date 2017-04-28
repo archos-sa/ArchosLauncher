@@ -21,6 +21,12 @@
     <!-- General -->
     <skip />
 
+	<!-- Settings title to show Google Now at -1 screen on launcher. [CHAR LIMIT=50] -->
+    <string name="title_show_google_app">Show Google App</string>
+    <!-- Settings message explaining when the -1 screen is available on an LTR device. [CHAR LIMIT=100] -->
+    <string name="msg_minus_one_on_left">When you swipe left from main Home screen</string>
+    <!-- Settings message explaining when the -1 screen is available on an RTL device. [CHAR LIMIT=100] -->
+    <string name="msg_minus_one_on_right">When you swipe left right main Home screen</string>
     <!-- URI used to import old favorites. [DO NOT TRANSLATE] -->
     <string name="old_launcher_provider_uri" translatable="false">content://com.android.launcher2.settings/favorites?notify=true</string>
 

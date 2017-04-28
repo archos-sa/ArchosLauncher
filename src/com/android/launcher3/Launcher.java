@@ -703,6 +703,16 @@ public class Launcher extends Activity
         registerReceiver(searchBarVisibilityChangedReceiver, searchBarVisibilityFilter);
     }
 
+    /**
+     * Call this after onCreate to set or clear overlay.
+     */
+    public void setLauncherOverlay(LauncherOverlay overlay) {
+        if (overlay != null) {
+            overlay.setOverlayCallbacks(new LauncherOverlayCallbacksImpl());
+        }
+        mWorkspace.setLauncherOverlay(overlay);
+    }
+
     public void checkPermissionsAndExportDBFile(){
         if( checkWriteExternalPermission() == false) {
             requestWriteExternalPermission();
@@ -1422,6 +1432,12 @@ public class Launcher extends Activity
          * to exit fully immersive mode.
          */
         public void forceExitFullImmersion();
+
+        /**
+         * Called when the launcher is ready to use the overlay
+         * @param callbacks A set of callbacks provided by Launcher in relation to the overlay
+         */
+        public void setOverlayCallbacks(LauncherOverlayCallbacks callbacks);
     }
 
     public interface LauncherSearchCallbacks {
@@ -1434,6 +1450,7 @@ public class Launcher extends Activity
          * Called when the search overlay is dismissed.
          */
         public void onSearchOverlayClosed();
+
     }
 
     public interface LauncherOverlayCallbacks {
@@ -1462,6 +1479,7 @@ public class Launcher extends Activity
          * full control over UI and state.
          */
         public void exitFullImmersion();
+
     }
 
     class LauncherOverlayCallbacksImpl implements LauncherOverlayCallbacks {
