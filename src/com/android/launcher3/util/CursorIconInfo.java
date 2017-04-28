@@ -36,7 +36,7 @@ public class CursorIconInfo {
     public final int iconIndex;
 
     public CursorIconInfo(Cursor c) {
-        iconTypeIndex = c.getColumnIndexOrThrow(LauncherSettings.Favorites.ICON_TYPE);
+        iconTypeIndex = 0;
         iconIndex = c.getColumnIndexOrThrow(LauncherSettings.Favorites.ICON);
         iconPackageIndex = c.getColumnIndexOrThrow(LauncherSettings.Favorites.ICON_PACKAGE);
         iconResourceIndex = c.getColumnIndexOrThrow(LauncherSettings.Favorites.ICON_RESOURCE);
@@ -44,7 +44,7 @@ public class CursorIconInfo {
 
     public Bitmap loadIcon(Cursor c, ShortcutInfo info, Context context) {
         Bitmap icon = null;
-        int iconType = c.getInt(iconTypeIndex);
+        int iconType = 0;
         switch (iconType) {
         case LauncherSettings.Favorites.ICON_TYPE_RESOURCE:
             String packageName = c.getString(iconPackageIndex);

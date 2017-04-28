@@ -2274,7 +2274,7 @@ public class Launcher extends Activity
         launcherInfo.hostView = null;
         AppWidgetProviderInfo info = mAppWidgetManager.getAppWidgetInfo(launcherInfo.appWidgetId);
         if (info != null) {
-            String packageName = info.providerInfo.packageName;
+           // String packageName = info.providerInfo.packageName;
         }
     }
 
@@ -2773,7 +2773,7 @@ public class Launcher extends Activity
             completeAddAppWidget(appWidgetId, info.container, info.screenId, boundWidget,
                     appWidgetInfo);
             mWorkspace.removeExtraEmptyScreenDelayed(true, onComplete, delay, false);
-            String packageName = appWidgetInfo.providerInfo.packageName;
+            //String packageName = appWidgetInfo.providerInfo.packageName;
         }
     }
 

@@ -476,12 +476,12 @@ public class LauncherProvider extends ContentProvider {
                     Log.e(TAG, "Failed getting source dir", e);
                 }
 
-                AssetManager assetManager = new AssetManager();
+                /*AssetManager assetManager = new AssetManager();
                 if (!TextUtils.isEmpty(publicSrcDir)) {
                     assetManager.addAssetPath(publicSrcDir);
                 }
                 customResources = new Resources(assetManager, new DisplayMetrics(),
-                        tempConfiguration);
+                        tempConfiguration);*/
             }
         }
 

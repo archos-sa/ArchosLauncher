@@ -2013,8 +2013,7 @@ public class LauncherModel extends BroadcastReceiver
                             LauncherSettings.Favorites.PROFILE_ID);
                     final int optionsIndex = c.getColumnIndexOrThrow(
                             LauncherSettings.Favorites.OPTIONS);
-                    final int hiddenIndex = c.getColumnIndexOrThrow(
-                            LauncherSettings.Favorites.HIDDEN);
+                    final int hiddenIndex = 0;
                     final int subTypeIndex = c.getColumnIndexOrThrow(LauncherSettings.Favorites.SUBTYPE);
                     final CursorIconInfo cursorIconInfo = new CursorIconInfo(c);
 
