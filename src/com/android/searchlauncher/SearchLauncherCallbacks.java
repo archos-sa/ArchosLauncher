@@ -31,6 +31,7 @@ import com.android.launcher3.AppInfo;
 import com.android.launcher3.InsettableFrameLayout;
 import com.android.launcher3.Launcher;
 import com.android.launcher3.LauncherCallbacks;
+import com.android.launcher3.VerticalSlidingPanel;
 import com.android.launcher3.allapps.AllAppsSearchBarController;
 import com.android.launcher3.util.ComponentKey;
 import com.google.android.libraries.launcherclient.LauncherClient;
@@ -194,7 +195,12 @@ public class SearchLauncherCallbacks implements LauncherCallbacks, OnSharedPrefe
 
     @Override
     public void onClickSettingsButton(View v) {
-       // mLauncher.startActivity(new Intent(mLauncher, SettingsActivity.class));
+        VerticalSlidingPanel overviewPanel = (VerticalSlidingPanel)mLauncher.getOverviewPanel();
+        if (overviewPanel.isExpanded()) {
+            overviewPanel.collapsePane();
+        } else {
+            overviewPanel.expandPane();
+        }
     }
 
     @Override
