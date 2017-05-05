@@ -42,12 +42,10 @@ public class OverviewSettingsPanel {
 
         if( mLauncher.getIsHiddenMenuOptionEnabled() == false ) {
             valuesApp = new String[] {
-                res.getString(R.string.larger_icons_text),
-                res.getString(R.string.protected_app_settings)};
+                res.getString(R.string.larger_icons_text)};
         } else {
             valuesApp = new String[] {
                 res.getString(R.string.larger_icons_text),
-                res.getString(R.string.protected_app_settings),
                 res.getString(R.string.export_workspace_layout)};
         }
         mSettingsAdapter = new SettingsPinnedHeaderAdapter(mLauncher);
