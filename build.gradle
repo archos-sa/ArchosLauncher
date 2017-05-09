@@ -15,6 +15,9 @@ android {
     compileSdkVersion 25
     buildToolsVersion "22.0.1"
 
+ if (file("../mc-utils/mc_apps_common_env.gradle").exists())
+        apply from: "../mc-utils/mc_apps_common_env.gradle";
+
     defaultConfig {
         applicationId "com.android.launcher3"
         minSdkVersion 16
@@ -22,9 +25,36 @@ android {
         versionCode 1
         versionName "1.0"
     }
+
+    if (project.ext.has("ProjectKeyStoreFile")) {
+        signingConfigs {
+            release {
+                storeFile file(ProjectKeyStoreFile)
+                storePassword ProjectKeyStorePassword
+                keyAlias ProjectKeyAlias
+                keyPassword ProjectKeyPassword
+            }
+        }
+    }
+
     buildTypes {
-        debug {
+        release {
+            signingConfig signingConfigs.release
             minifyEnabled false
+        }
+        debug {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+        }
+    }
+    productFlavors {
+	archos {
+            applicationId 'com.archos.launcher'
+            testApplicationId 'com.archos.launcher.tests'
+        }
+        cm {
+            applicationId 'com.android.launcher3'
+            testApplicationId 'com.android.launcher3.tests'
         }
     }
     sourceSets {
