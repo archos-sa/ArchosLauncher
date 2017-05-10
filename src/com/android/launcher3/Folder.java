@@ -252,7 +252,7 @@ public class Folder extends LinearLayout implements DragSource, View.OnClickList
         }
         mFolderLock = (ImageView) findViewById(R.id.folder_lock);
         mFolderLock.setOnClickListener(this);
-
+        mFolderLock.setVisibility(GONE);
         mFooter = findViewById(R.id.folder_footer);
     }
 
