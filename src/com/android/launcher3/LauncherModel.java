@@ -1024,7 +1024,6 @@ public class LauncherModel extends BroadcastReceiver
                 final int cellXIndex = c.getColumnIndexOrThrow(LauncherSettings.Favorites.CELLX);
                 final int cellYIndex = c.getColumnIndexOrThrow(LauncherSettings.Favorites.CELLY);
                 final int optionsIndex = c.getColumnIndexOrThrow(LauncherSettings.Favorites.OPTIONS);
-                final int hiddenIndex = c.getColumnIndexOrThrow(LauncherSettings.Favorites.HIDDEN);
                 final int subType = c.getColumnIndexOrThrow(LauncherSettings.Favorites.SUBTYPE);
 
                 FolderInfo folderInfo = null;
@@ -1042,7 +1041,6 @@ public class LauncherModel extends BroadcastReceiver
                 folderInfo.cellX = c.getInt(cellXIndex);
                 folderInfo.cellY = c.getInt(cellYIndex);
                 folderInfo.options = c.getInt(optionsIndex);
-                folderInfo.hidden = c.getInt(hiddenIndex) > 0;
                 folderInfo.subType = subType;
 
                 return folderInfo;
@@ -2013,7 +2011,6 @@ public class LauncherModel extends BroadcastReceiver
                             LauncherSettings.Favorites.PROFILE_ID);
                     final int optionsIndex = c.getColumnIndexOrThrow(
                             LauncherSettings.Favorites.OPTIONS);
-                    final int hiddenIndex = 0;
                     final int subTypeIndex = c.getColumnIndexOrThrow(LauncherSettings.Favorites.SUBTYPE);
                     final CursorIconInfo cursorIconInfo = new CursorIconInfo(c);
 
@@ -2293,7 +2290,6 @@ public class LauncherModel extends BroadcastReceiver
                                 folderInfo.spanX = 1;
                                 folderInfo.spanY = 1;
                                 folderInfo.options = c.getInt(optionsIndex);
-                                folderInfo.hidden = c.getInt(hiddenIndex) > 0;
                                 folderInfo.subType = c.getInt(subTypeIndex);
 
                                 // check & update map of what's occupied
