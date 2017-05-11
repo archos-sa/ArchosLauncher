@@ -96,8 +96,7 @@ public class OverviewSettingsPanel {
                 res.getString(R.string.app_drawer_style),
                 res.getString(R.string.app_drawer_color),
                 res.getString(R.string.fast_scroller),
-                res.getString(R.string.fast_scroller_type),
-                res.getString(R.string.home_screen_search_text)}));
+                res.getString(R.string.fast_scroller_type)}));
 
         // Add additional external settings.
         RemoteFolderManager.onInitializeDrawerSettings(values, mLauncher);
