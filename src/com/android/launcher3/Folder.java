@@ -620,30 +620,51 @@ public class Folder extends LinearLayout implements DragSource, View.OnClickList
                 }
             };
         } else {
+            //measure again to have an accurate height/width in case items have been added or removed
+            measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
             calculatePivot();
-
+            ((DragLayer.LayoutParams)getLayoutParams()).bottomMargin = 0;
+            ((DragLayer.LayoutParams)getLayoutParams()).topMargin = 0;
+            ((DragLayer.LayoutParams)getLayoutParams()).rightMargin = 0;
+            ((DragLayer.LayoutParams)getLayoutParams()).leftMargin = 0;
             AnimatorSet anim = LauncherAnimUtils.createAnimatorSet();
             int width = getMeasuredWidth();
+            int realWidth = width+((DragLayer.LayoutParams)getLayoutParams()).leftMargin+((DragLayer.LayoutParams)getLayoutParams()).rightMargin;
             int height = getMeasuredHeight();
+            int realHeight = height+((DragLayer.LayoutParams)getLayoutParams()).topMargin+((DragLayer.LayoutParams)getLayoutParams()).bottomMargin;
+            Rect workPadding = mLauncher.getDeviceProfile().getWorkspacePadding(Utilities.isRtl(getResources()));
+            int highLimit = workPadding.top+mLauncher.getWorkspace().getInsets().top;
 
-            float transX = - 0.075f * (width / 2 - getPivotX());
-            float transY = - 0.075f * (height / 2 - getPivotY());
-            setTranslationX(transX);
-            setTranslationY(transY);
-            PropertyValuesHolder tx = PropertyValuesHolder.ofFloat("translationX", transX, 0);
-            PropertyValuesHolder ty = PropertyValuesHolder.ofFloat("translationY", transY, 0);
+            int parentWidth = ((DragLayer) getParent()).getMeasuredWidth();
+            int parentHeight = ((DragLayer) getParent()).getMeasuredHeight()-workPadding.top-workPadding.bottom;
 
-            Animator drift = ObjectAnimator.ofPropertyValuesHolder(this, tx, ty);
-            drift.setDuration(mMaterialExpandDuration);
-            drift.setStartDelay(mMaterialExpandStagger);
-            drift.setInterpolator(new LogDecelerateInterpolator(60, 0));
+            int[] folderIconXY = new int[2];
+            mFolderIcon.getLocationOnScreen(folderIconXY);
+            int wantedX = folderIconXY[0]+mFolderIcon.getMeasuredWidth()/2-realWidth/2;
+            if(wantedX<0)
+                wantedX=0;
+            if(wantedX+realWidth>parentWidth) {
+                wantedX = wantedX - (wantedX+realWidth-parentWidth);
+            }
+            int wantedY = folderIconXY[1]+mFolderIcon.getMeasuredHeight()/2-realHeight/2;
+            if(wantedY<highLimit)
+                wantedY=highLimit;
+            if(wantedY+realHeight>parentHeight) {
+                wantedY = wantedY - (wantedY+realHeight-parentHeight);
+            }
+            setX(wantedX);
+            setY(wantedY);
+            setTranslationX(wantedX);
+            setTranslationY(wantedY);
+            PropertyValuesHolder tx = PropertyValuesHolder.ofFloat("translationX", wantedX, wantedX);
+            PropertyValuesHolder ty = PropertyValuesHolder.ofFloat("translationY", wantedY-100, wantedY);
 
             int rx = (int) Math.max(Math.max(width - getPivotX(), 0), getPivotX());
             int ry = (int) Math.max(Math.max(height - getPivotY(), 0), getPivotY());
             float radius = (float) Math.hypot(rx, ry);
 
-            Animator reveal = UiThreadCircularReveal.createCircularReveal(this, (int) getPivotX(),
-                    (int) getPivotY(), 0, radius);
+            Animator reveal = UiThreadCircularReveal.createCircularReveal(this, folderIconXY[0]-wantedX+mFolderIcon.getMeasuredWidth()/3,
+                    folderIconXY[1]-wantedY, 0, radius);
             reveal.setDuration(mMaterialExpandDuration);
             reveal.setInterpolator(new LogDecelerateInterpolator(100, 0));
 
@@ -708,7 +729,7 @@ public class Folder extends LinearLayout implements DragSource, View.OnClickList
             public void onAnimationStart(Animator animation) {
                 sendCustomAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
                         mContent.getAccessibilityDescription());
-                hideWorkspace();
+               // hideWorkspace();
                 mState = STATE_ANIMATING;
             }
             @Override
@@ -823,20 +844,11 @@ public class Folder extends LinearLayout implements DragSource, View.OnClickList
         if (mPowerManager.isPowerSaveMode() || animatorDurationScale < 0.01f) {
             // power save mode is no fun - skip alpha animation and just set it to 0
             // otherwise the icons will stay around until the duration of the animation
-            if (animate) {
-                oa = LauncherAnimUtils.ofPropertyValuesHolder(this, translationY);
-            } else {
-                oa = LauncherAnimUtils.ofPropertyValuesHolder(this);
-            }
+            oa = LauncherAnimUtils.ofPropertyValuesHolder(this);
             setAlpha(0f);
         } else {
-            if (animate) {
-                oa = LauncherAnimUtils.ofPropertyValuesHolder(this, alpha, translationY);
-            } else {
-                oa = LauncherAnimUtils.ofPropertyValuesHolder(this, alpha);
-            }
+            oa = LauncherAnimUtils.ofPropertyValuesHolder(this, alpha);
         }
-
         oa.setDuration(mMaterialExpandDuration);
         oa.setInterpolator(new LogDecelerateInterpolator(60, 0));
         anim.play(oa);
