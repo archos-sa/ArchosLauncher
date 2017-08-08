@@ -22,7 +22,7 @@
     android:elevation="5dp"
     android:orientation="vertical"
     android:layout_margin="@dimen/folder_margin"
-    android:layout_gravity="bottom|center_horizontal">
+    >
 
     <include layout="@layout/remote_folder"
         android:layout_width="wrap_content"
