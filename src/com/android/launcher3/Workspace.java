@@ -682,9 +682,6 @@ public class Workspace extends PagedView
         mCustomContentCallbacks = callbacks;
     }
 
-    public Rect getInsets(){
-        return mInsets;
-    }
     public void addExtraEmptyScreenOnDrag() {
         boolean lastChildOnScreen = false;
         boolean childOnFinalScreen = false;
