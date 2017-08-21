@@ -54,8 +54,9 @@ import com.android.launcher3.compat.UserHandleCompat;
 import com.android.launcher3.compat.UserManagerCompat;
 import com.android.launcher3.model.MigrateFromRestoreTask;
 import com.android.launcher3.util.Thunk;
-import com.google.protobuf.nano.InvalidProtocolBufferNanoException;
-import com.google.protobuf.nano.MessageNano;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.MessageLite;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -183,14 +184,14 @@ public class LauncherBackupHelper implements BackupHelper {
     }
 
     private void applyJournal(Journal journal) {
-        mLastBackupRestoreTime = journal.t;
+        mLastBackupRestoreTime = journal.getT();
         mExistingKeys.clear();
-        if (journal.key != null) {
-            for (Key key : journal.key) {
+        if (journal.getKeyCount() != 0) {
+            for (Key key : journal.getKeyList()) {
                 mExistingKeys.add(keyToBackupKey(key));
             }
         }
-        restoredBackupVersion = journal.backupVersion;
+        restoredBackupVersion = journal.getBackupVersion();
     }
 
     /**
@@ -224,7 +225,7 @@ public class LauncherBackupHelper implements BackupHelper {
             mIconCache = app.getIconCache();
         }
 
-        Log.v(TAG, "lastBackupTime = " + in.t);
+        Log.v(TAG, "lastBackupTime = " + in.getT());
         mKeys.clear();
         applyJournal(in);
 
@@ -255,11 +256,10 @@ public class LauncherBackupHelper implements BackupHelper {
             mExistingKeys.clear();
             if (!mBackupDataWasUpdated) {
                 // Check if any metadata has changed
-                mBackupDataWasUpdated = (in.profile == null)
-                        || !Arrays.equals(DeviceProfieData.toByteArray(in.profile),
-                            DeviceProfieData.toByteArray(mDeviceProfileData))
-                        || (in.backupVersion != BACKUP_VERSION)
-                        || (in.appVersion != getAppVersion());
+                mBackupDataWasUpdated = !in.hasProfile()
+                        || in.getProfile().hashCode() != mDeviceProfileData.hashCode()
+                        || (in.getBackupVersion() != BACKUP_VERSION)
+                        || (in.getAppVersion() != getAppVersion());
             }
 
             if (mBackupDataWasUpdated) {
@@ -286,43 +286,49 @@ public class LauncherBackupHelper implements BackupHelper {
      */
     private boolean isBackupCompatible(Journal oldState) {
         DeviceProfieData currentProfile = mDeviceProfileData;
-        DeviceProfieData oldProfile = oldState.profile;
+        DeviceProfieData oldProfile = oldState.getProfile();
 
-        if (oldProfile == null || oldProfile.desktopCols == 0) {
+        if (oldProfile == null || oldProfile.getDesktopCols() == 0) {
             // Profile info is not valid, ignore the check.
             return true;
         }
 
         boolean isHotseatCompatible = false;
-        if (currentProfile.allappsRank >= oldProfile.hotseatCount) {
+        if (currentProfile.getAllappsRank() >= oldProfile.getHotseatCount()) {
             isHotseatCompatible = true;
             mHotseatShift = 0;
         }
 
-        if ((currentProfile.allappsRank >= oldProfile.allappsRank)
-                && ((currentProfile.hotseatCount - currentProfile.allappsRank) >=
-                        (oldProfile.hotseatCount - oldProfile.allappsRank))) {
+        if ((currentProfile.getAllappsRank() >= oldProfile.getAllappsRank())
+                && ((currentProfile.getHotseatCount() - currentProfile.getAllappsRank()) >=
+                        (oldProfile.getHotseatCount() - oldProfile.getAllappsRank()))) {
             // There is enough space on both sides of the hotseat.
             isHotseatCompatible = true;
-            mHotseatShift = currentProfile.allappsRank - oldProfile.allappsRank;
+            mHotseatShift = currentProfile.getAllappsRank() - oldProfile.getAllappsRank();
         }
 
         if (!isHotseatCompatible) {
             return false;
         }
-        if ((currentProfile.desktopCols >= oldProfile.desktopCols)
-                && (currentProfile.desktopRows >= oldProfile.desktopRows)) {
+        if ((currentProfile.getDesktopCols() >= oldProfile.getDesktopCols())
+                && (currentProfile.getDesktopRows() >= oldProfile.getDesktopRows())) {
             return true;
         }
 
         if (MigrateFromRestoreTask.ENABLED &&
-                (oldProfile.desktopCols - currentProfile.desktopCols <= 1) &&
-                (oldProfile.desktopRows - currentProfile.desktopRows <= 1)) {
+                (oldProfile.getDesktopCols() - currentProfile.getDesktopCols() <= 1) &&
+                (oldProfile.getDesktopRows() - currentProfile.getDesktopRows() <= 1)) {
             // Allow desktop migration when row and/or column count contracts by 1.
 
+            /*
+            FIXME
+                You're supposed to use the factory, not modify value in-place
+            no-op for the moment
+            */
+            /*
             migrationCompatibleProfileData = initDeviceProfileData(mIdp);
-            migrationCompatibleProfileData.desktopCols = oldProfile.desktopCols;
-            migrationCompatibleProfileData.desktopRows = oldProfile.desktopRows;
+            migrationCompatibleProfileData.desktopCols = oldProfile.getDesktopCols();
+            migrationCompatibleProfileData.desktopRows = oldProfile.getDesktopRows();*/
             return true;
         }
         return false;
@@ -367,8 +373,10 @@ public class LauncherBackupHelper implements BackupHelper {
                     return;
                 }
 
-                Journal journal = new Journal();
-                MessageNano.mergeFrom(journal, readCheckedBytes(mBuffer, dataSize));
+                Journal journal = Journal
+                        .newBuilder()
+                        .mergeFrom(readCheckedBytes(mBuffer, dataSize))
+                        .build();
                 applyJournal(journal);
                 restoreSuccessful = isBackupCompatible(journal);
                 return;
@@ -380,25 +388,25 @@ public class LauncherBackupHelper implements BackupHelper {
             }
             Key key = backupKeyToKey(backupKey);
             mKeys.add(key);
-            switch (key.type) {
-                case Key.FAVORITE:
+            switch (key.getType()) {
+                case FAVORITE:
                     restoreFavorite(key, mBuffer, dataSize);
                     break;
 
-                case Key.SCREEN:
+                case SCREEN:
                     restoreScreen(key, mBuffer, dataSize);
                     break;
 
-                case Key.ICON:
+                case ICON:
                     restoreIcon(key, mBuffer, dataSize);
                     break;
 
-                case Key.WIDGET:
+                case WIDGET:
                     restoreWidget(key, mBuffer, dataSize);
                     break;
 
                 default:
-                    Log.w(TAG, "unknown restore entity type: " + key.type);
+                    Log.w(TAG, "unknown restore entity type: " + key.getType());
                     mKeys.remove(key);
                     break;
             }
@@ -418,13 +426,15 @@ public class LauncherBackupHelper implements BackupHelper {
     }
 
     private Journal getCurrentStateJournal() {
-        Journal journal = new Journal();
-        journal.t = mLastBackupRestoreTime;
-        journal.key = mKeys.toArray(new BackupProtos.Key[mKeys.size()]);
-        journal.appVersion = getAppVersion();
-        journal.backupVersion = BACKUP_VERSION;
-        journal.profile = mDeviceProfileData;
-        return journal;
+        return
+                Journal
+                        .newBuilder()
+                        .setT(mLastBackupRestoreTime)
+                        .addAllKey(mKeys)
+                        .setAppVersion(getAppVersion())
+                        .setBackupVersion(BACKUP_VERSION)
+                        .setProfile(mDeviceProfileData)
+                        .build();
     }
 
     private int getAppVersion() {
@@ -437,12 +447,14 @@ public class LauncherBackupHelper implements BackupHelper {
     }
 
     private DeviceProfieData initDeviceProfileData(InvariantDeviceProfile profile) {
-        DeviceProfieData data = new DeviceProfieData();
-        data.desktopRows = profile.numRows;
-        data.desktopCols = profile.numColumns;
-        data.hotseatCount = profile.numHotseatIcons;
-        data.allappsRank = profile.hotseatAllAppsRank;
-        return data;
+        return
+                DeviceProfieData
+                        .newBuilder()
+                        .setDesktopRows(profile.numRows)
+                        .setDesktopCols(profile.numColumns)
+                        .setHotseatCount(profile.numHotseatIcons)
+                        .setAllappsRank(profile.hotseatAllAppsRank)
+                        .build();
     }
 
     /**
@@ -462,7 +474,7 @@ public class LauncherBackupHelper implements BackupHelper {
             while(cursor.moveToNext()) {
                 final long id = cursor.getLong(ID_INDEX);
                 final long updateTime = cursor.getLong(ID_MODIFIED);
-                Key key = getKey(Key.FAVORITE, id);
+                Key key = getKey(Key.Type.FAVORITE_VALUE, id);
                 mKeys.add(key);
                 final String backupKey = keyToBackupKey(key);
 
@@ -489,7 +501,7 @@ public class LauncherBackupHelper implements BackupHelper {
      * @param dataSize the size of the proto from the stream
      */
     private void restoreFavorite(Key key, byte[] buffer, int dataSize) throws IOException {
-        if (VERBOSE) Log.v(TAG, "unpacking favorite " + key.id);
+        if (VERBOSE) Log.v(TAG, "unpacking favorite " + key.getId());
         if (DEBUG) Log.d(TAG, "read (" + buffer.length + "): " +
                 Base64.encodeToString(buffer, 0, dataSize, Base64.NO_WRAP));
 
@@ -515,7 +527,7 @@ public class LauncherBackupHelper implements BackupHelper {
             while(cursor.moveToNext()) {
                 final long id = cursor.getLong(ID_INDEX);
                 final long updateTime = cursor.getLong(ID_MODIFIED);
-                Key key = getKey(Key.SCREEN, id);
+                Key key = getKey(Key.Type.SCREEN_VALUE, id);
                 mKeys.add(key);
                 final String backupKey = keyToBackupKey(key);
                 if (!mExistingKeys.contains(backupKey) || updateTime >= mLastBackupRestoreTime) {
@@ -539,7 +551,7 @@ public class LauncherBackupHelper implements BackupHelper {
      * @param dataSize the size of the proto from the stream
      */
     private void restoreScreen(Key key, byte[] buffer, int dataSize) throws IOException {
-        if (VERBOSE) Log.v(TAG, "unpacking screen " + key.id);
+        if (VERBOSE) Log.v(TAG, "unpacking screen " + key.getId());
         if (DEBUG) Log.d(TAG, "read (" + buffer.length + "): " +
                 Base64.encodeToString(buffer, 0, dataSize, Base64.NO_WRAP));
 
@@ -578,7 +590,7 @@ public class LauncherBackupHelper implements BackupHelper {
                     Key key = null;
                     String backupKey = null;
                     if (cn != null) {
-                        key = getKey(Key.ICON, cn.flattenToShortString());
+                        key = getKey(Key.Type.ICON_VALUE, cn.flattenToShortString());
                         backupKey = keyToBackupKey(key);
                     } else {
                         Log.w(TAG, "empty intent on application favorite: " + id);
@@ -626,20 +638,20 @@ public class LauncherBackupHelper implements BackupHelper {
      * @param dataSize the size of the proto from the stream
      */
     private void restoreIcon(Key key, byte[] buffer, int dataSize) throws IOException {
-        if (VERBOSE) Log.v(TAG, "unpacking icon " + key.id);
+        if (VERBOSE) Log.v(TAG, "unpacking icon " + key.getId());
         if (DEBUG) Log.d(TAG, "read (" + buffer.length + "): " +
                 Base64.encodeToString(buffer, 0, dataSize, Base64.NO_WRAP));
 
-        Resource res = unpackProto(new Resource(), buffer, dataSize);
+        Resource res = Resource.parseFrom(buffer);
         if (DEBUG) {
-            Log.d(TAG, "unpacked " + res.dpi + " dpi icon");
+            Log.d(TAG, "unpacked " + res.getDpi() + " dpi icon");
         }
-        Bitmap icon = BitmapFactory.decodeByteArray(res.data, 0, res.data.length);
+        Bitmap icon = BitmapFactory.decodeByteArray(res.getData().toByteArray(), 0, res.getData().size());
         if (icon == null) {
-            Log.w(TAG, "failed to unpack icon for " + key.name);
+            Log.w(TAG, "failed to unpack icon for " + key.getName());
         } else {
-            if (VERBOSE) Log.v(TAG, "saving restored icon as: " + key.name);
-            mIconCache.preloadIcon(ComponentName.unflattenFromString(key.name), icon, res.dpi,
+            if (VERBOSE) Log.v(TAG, "saving restored icon as: " + key.getName());
+            mIconCache.preloadIcon(ComponentName.unflattenFromString(key.getName()), icon, res.getDpi(),
                     "" /* label */, mUserSerial, mIdp);
         }
     }
@@ -670,7 +682,7 @@ public class LauncherBackupHelper implements BackupHelper {
                 Key key = null;
                 String backupKey = null;
                 if (provider != null) {
-                    key = getKey(Key.WIDGET, providerName);
+                    key = getKey(Key.Type.WIDGET_VALUE, providerName);
                     backupKey = keyToBackupKey(key);
                 } else {
                     Log.w(TAG, "empty intent on appwidget: " + id);
@@ -712,24 +724,32 @@ public class LauncherBackupHelper implements BackupHelper {
      * @param dataSize the size of the proto from the stream
      */
     private void restoreWidget(Key key, byte[] buffer, int dataSize) throws IOException {
-        if (VERBOSE) Log.v(TAG, "unpacking widget " + key.id);
+        if (VERBOSE) Log.v(TAG, "unpacking widget " + key.getId());
         if (DEBUG) Log.d(TAG, "read (" + buffer.length + "): " +
                 Base64.encodeToString(buffer, 0, dataSize, Base64.NO_WRAP));
-        Widget widget = unpackProto(new Widget(), buffer, dataSize);
-        if (DEBUG) Log.d(TAG, "unpacked " + widget.provider);
-        if (widget.icon.data != null)  {
+        Widget widget = Widget.parseFrom(buffer);
+        if (DEBUG) Log.d(TAG, "unpacked " + widget.getProvider());
+        if (widget.getIcon().getData() != null)  {
             Bitmap icon = BitmapFactory
-                    .decodeByteArray(widget.icon.data, 0, widget.icon.data.length);
+                    .decodeByteArray(widget.getIcon().getData().toByteArray(), 0, widget.getIcon().getData().size());
             if (icon == null) {
-                Log.w(TAG, "failed to unpack widget icon for " + key.name);
+                Log.w(TAG, "failed to unpack widget icon for " + key.getName());
             } else {
-                mIconCache.preloadIcon(ComponentName.unflattenFromString(widget.provider),
-                        icon, widget.icon.dpi, widget.label, mUserSerial, mIdp);
+                mIconCache.preloadIcon(ComponentName.unflattenFromString(widget.getProvider()),
+                        icon, widget.getIcon().getDpi(), widget.getLabel(), mUserSerial, mIdp);
             }
         }
 
         // Cache widget min sizes incase migration is required.
-        widgetSizes.add(widget.provider + "#" + widget.minSpanX + "," + widget.minSpanY);
+        widgetSizes.add(widget.getProvider() + "#" + widget.getMinSpanX()+ "," + widget.getMinSpanY());
+    }
+
+    private Key getKey(Key a) {
+        Key b = Key
+                .newBuilder(a)
+                .setChecksum(checkKey(a))
+                .build();
+        return b;
     }
 
     /** create a new key, with an integer ID.
@@ -738,11 +758,12 @@ public class LauncherBackupHelper implements BackupHelper {
      * the heavy-weight CheckedMessage wrapper.
      */
     private Key getKey(int type, long id) {
-        Key key = new Key();
-        key.type = type;
-        key.id = id;
-        key.checksum = checkKey(key);
-        return key;
+        Key a = Key
+                .newBuilder()
+                .setType(Key.Type.forNumber(type))
+                .setId(id)
+                .build();
+        return getKey(a);
     }
 
     /** create a new key for a named object.
@@ -751,28 +772,29 @@ public class LauncherBackupHelper implements BackupHelper {
      * the heavy-weight CheckedMessage wrapper.
      */
     private Key getKey(int type, String name) {
-        Key key = new Key();
-        key.type = type;
-        key.name = name;
-        key.checksum = checkKey(key);
-        return key;
+        Key a = Key
+                .newBuilder()
+                .setType(Key.Type.forNumber(type))
+                .setName(name)
+                .build();
+        return getKey(a);
     }
 
     /** keys need to be strings, serialize and encode. */
     private String keyToBackupKey(Key key) {
-        return Base64.encodeToString(Key.toByteArray(key), Base64.NO_WRAP);
+        return Base64.encodeToString(key.toByteArray(), Base64.NO_WRAP);
     }
 
     /** keys need to be strings, decode and parse. */
     private Key backupKeyToKey(String backupKey) throws InvalidBackupException {
         try {
             Key key = Key.parseFrom(Base64.decode(backupKey, Base64.DEFAULT));
-            if (key.checksum != checkKey(key)) {
+            if (key.getChecksum()!= checkKey(key)) {
                 key = null;
                 throw new InvalidBackupException("invalid key read from stream" + backupKey);
             }
             return key;
-        } catch (InvalidProtocolBufferNanoException e) {
+        } catch (InvalidProtocolBufferException e) {
             throw new InvalidBackupException(e);
         } catch (IllegalArgumentException e) {
             throw new InvalidBackupException(e);
@@ -782,11 +804,11 @@ public class LauncherBackupHelper implements BackupHelper {
     /** Compute the checksum over the important bits of a key. */
     private long checkKey(Key key) {
         CRC32 checksum = new CRC32();
-        checksum.update(key.type);
-        checksum.update((int) (key.id & 0xffff));
-        checksum.update((int) ((key.id >> 32) & 0xffff));
-        if (!TextUtils.isEmpty(key.name)) {
-            checksum.update(key.name.getBytes());
+        checksum.update(key.getType().getNumber());
+        checksum.update((int) (key.getId() & 0xffff));
+        checksum.update((int) ((key.getId() >> 32) & 0xffff));
+        if (!TextUtils.isEmpty(key.getName())) {
+            checksum.update(key.getName().getBytes());
         }
         return checksum.getValue();
     }
@@ -796,28 +818,30 @@ public class LauncherBackupHelper implements BackupHelper {
      * TODO: Extend check for folders in hotseat.
      */
     private boolean isReplaceableHotseatItem(Favorite favorite) {
-        return favorite.container == Favorites.CONTAINER_HOTSEAT
-                && favorite.intent != null
-                && (favorite.itemType == Favorites.ITEM_TYPE_APPLICATION
-                || favorite.itemType == Favorites.ITEM_TYPE_SHORTCUT);
+        return favorite.getContainer()== Favorites.CONTAINER_HOTSEAT
+                && favorite.getIntent()!= null
+                && (favorite.getItemType() == Favorites.ITEM_TYPE_APPLICATION
+                || favorite.getItemType()== Favorites.ITEM_TYPE_SHORTCUT);
     }
 
     /** Serialize a Favorite for persistence, including a checksum wrapper. */
     private Favorite packFavorite(Cursor c) {
-        Favorite favorite = new Favorite();
-        favorite.id = c.getLong(ID_INDEX);
-        favorite.screen = c.getInt(SCREEN_INDEX);
-        favorite.container = c.getInt(CONTAINER_INDEX);
-        favorite.cellX = c.getInt(CELLX_INDEX);
-        favorite.cellY = c.getInt(CELLY_INDEX);
-        favorite.spanX = c.getInt(SPANX_INDEX);
-        favorite.spanY = c.getInt(SPANY_INDEX);
-        favorite.iconType = c.getInt(ICON_TYPE_INDEX);
-        favorite.rank = c.getInt(RANK_INDEX);
+        Favorite.Builder builder = Favorite.newBuilder();
+
+        builder
+                .setId(c.getLong(ID_INDEX))
+                .setScreen(c.getInt(SCREEN_INDEX))
+                .setContainer(c.getInt(CONTAINER_INDEX))
+                .setCellX(c.getInt(CELLX_INDEX))
+                .setCellY(c.getInt(CELLY_INDEX))
+                .setSpanX(c.getInt(SPANX_INDEX))
+                .setSpanY(c.getInt(SPANY_INDEX))
+                .setIconType(c.getInt(ICON_TYPE_INDEX))
+                .setRank(c.getInt(RANK_INDEX));
 
         String title = c.getString(TITLE_INDEX);
         if (!TextUtils.isEmpty(title)) {
-            favorite.title = title;
+            builder.setTitle(title);
         }
         String intentDescription = c.getString(INTENT_INDEX);
         Intent intent = null;
@@ -825,37 +849,37 @@ public class LauncherBackupHelper implements BackupHelper {
             try {
                 intent = Intent.parseUri(intentDescription, 0);
                 intent.removeExtra(ItemInfo.EXTRA_PROFILE);
-                favorite.intent = intent.toUri(0);
+                builder.setIntent(intent.toUri(0));
             } catch (URISyntaxException e) {
                 Log.e(TAG, "Invalid intent", e);
             }
         }
-        favorite.itemType = c.getInt(ITEM_TYPE_INDEX);
-        if (favorite.itemType == Favorites.ITEM_TYPE_APPWIDGET) {
-            favorite.appWidgetId = c.getInt(APPWIDGET_ID_INDEX);
+        builder.setItemType(c.getInt(ITEM_TYPE_INDEX));
+        if (builder.getItemType() == Favorites.ITEM_TYPE_APPWIDGET) {
+            builder.setAppWidgetId(c.getInt(APPWIDGET_ID_INDEX));
             String appWidgetProvider = c.getString(APPWIDGET_PROVIDER_INDEX);
             if (!TextUtils.isEmpty(appWidgetProvider)) {
-                favorite.appWidgetProvider = appWidgetProvider;
+                builder.setAppWidgetProvider(appWidgetProvider);
             }
-        } else if (favorite.itemType == Favorites.ITEM_TYPE_SHORTCUT) {
-            if (favorite.iconType == Favorites.ICON_TYPE_RESOURCE) {
+        } else if (builder.getItemType() == Favorites.ITEM_TYPE_SHORTCUT) {
+            if (builder.getIconType() == Favorites.ICON_TYPE_RESOURCE) {
                 String iconPackage = c.getString(ICON_PACKAGE_INDEX);
                 if (!TextUtils.isEmpty(iconPackage)) {
-                    favorite.iconPackage = iconPackage;
+                    builder.setIconPackage(iconPackage);
                 }
                 String iconResource = c.getString(ICON_RESOURCE_INDEX);
                 if (!TextUtils.isEmpty(iconResource)) {
-                    favorite.iconResource = iconResource;
+                    builder.setIconResource(iconResource);
                 }
             }
 
             byte[] blob = c.getBlob(ICON_INDEX);
             if (blob != null && blob.length > 0) {
-                favorite.icon = blob;
+                builder.setIcon(ByteString.copyFrom(blob));
             }
         }
 
-        if (isReplaceableHotseatItem(favorite)) {
+        if (isReplaceableHotseatItem(builder.build())) {
             if (intent != null && intent.getComponent() != null) {
                 PackageManager pm = mContext.getPackageManager();
                 ActivityInfo activity = null;;
@@ -865,7 +889,7 @@ public class LauncherBackupHelper implements BackupHelper {
                     Log.e(TAG, "Target not found", e);
                 }
                 if (activity == null) {
-                    return favorite;
+                    return builder.build();
                 }
                 for (int i = 0; i < mItemTypeMatchers.length; i++) {
                     if (mItemTypeMatchers[i] == null) {
@@ -873,54 +897,55 @@ public class LauncherBackupHelper implements BackupHelper {
                                 CommonAppTypeParser.getResourceForItemType(i));
                     }
                     if (mItemTypeMatchers[i].matches(activity, pm)) {
-                        favorite.targetType = i;
+                        builder.setTargetType(Favorite.TargetType.forNumber(i));
                         break;
                     }
                 }
             }
         }
 
-        return favorite;
+        return builder.build();
     }
 
     /** Deserialize a Favorite from persistence, after verifying checksum wrapper. */
     private ContentValues unpackFavorite(byte[] buffer, int dataSize)
             throws IOException {
-        Favorite favorite = unpackProto(new Favorite(), buffer, dataSize);
+        Favorite favorite = Favorite.parseFrom(buffer);
 
+        int screen = favorite.getScreen();
         // If it is a hotseat item, move it accordingly.
-        if (favorite.container == Favorites.CONTAINER_HOTSEAT) {
-            favorite.screen += mHotseatShift;
+        if (favorite.getContainer() == Favorites.CONTAINER_HOTSEAT) {;
+            screen += mHotseatShift;
         }
 
         ContentValues values = new ContentValues();
-        values.put(Favorites._ID, favorite.id);
-        values.put(Favorites.SCREEN, favorite.screen);
-        values.put(Favorites.CONTAINER, favorite.container);
-        values.put(Favorites.CELLX, favorite.cellX);
-        values.put(Favorites.CELLY, favorite.cellY);
-        values.put(Favorites.SPANX, favorite.spanX);
-        values.put(Favorites.SPANY, favorite.spanY);
-        values.put(Favorites.RANK, favorite.rank);
+        values.put(Favorites._ID, favorite.getId());
+        values.put(Favorites.SCREEN, screen);
+        values.put(Favorites.CONTAINER, favorite.getContainer());
+        values.put(Favorites.CELLX, favorite.getCellX());
+        values.put(Favorites.CELLY, favorite.getCellY());
+        values.put(Favorites.SPANX, favorite.getSpanX());
+        values.put(Favorites.SPANY, favorite.getSpanY());
+        values.put(Favorites.RANK, favorite.getRank());
 
-        if (favorite.itemType == Favorites.ITEM_TYPE_SHORTCUT) {
-            values.put(Favorites.ICON_TYPE, favorite.iconType);
-            if (favorite.iconType == Favorites.ICON_TYPE_RESOURCE) {
-                values.put(Favorites.ICON_PACKAGE, favorite.iconPackage);
-                values.put(Favorites.ICON_RESOURCE, favorite.iconResource);
+        if (favorite.getItemType() == Favorites.ITEM_TYPE_SHORTCUT) {
+            values.put(Favorites.ICON_TYPE, favorite.getIconType());
+            if (favorite.getIconType() == Favorites.ICON_TYPE_RESOURCE) {
+                values.put(Favorites.ICON_PACKAGE, favorite.getIconPackage());
+                values.put(Favorites.ICON_RESOURCE, favorite.getIconResource());
             }
-            values.put(Favorites.ICON, favorite.icon);
+            values.put(Favorites.ICON, favorite.getIcon().toByteArray());
         }
 
-        if (!TextUtils.isEmpty(favorite.title)) {
-            values.put(Favorites.TITLE, favorite.title);
+        if (!TextUtils.isEmpty(favorite.getTitle())) {
+            values.put(Favorites.TITLE, favorite.getTitle());
         } else {
             values.put(Favorites.TITLE, "");
         }
-        if (!TextUtils.isEmpty(favorite.intent)) {
-            values.put(Favorites.INTENT, favorite.intent);
+        if (!TextUtils.isEmpty(favorite.getIntent())) {
+            values.put(Favorites.INTENT, favorite.getIntent());
         }
-        values.put(Favorites.ITEM_TYPE, favorite.itemType);
+        values.put(Favorites.ITEM_TYPE, favorite.getItemType());
 
         UserHandleCompat myUserHandle = UserHandleCompat.myUserHandle();
         long userSerialNumber =
@@ -933,45 +958,45 @@ public class LauncherBackupHelper implements BackupHelper {
         DeviceProfieData currentProfile = migrationCompatibleProfileData == null
                 ? mDeviceProfileData : migrationCompatibleProfileData;
 
-        if (favorite.itemType == Favorites.ITEM_TYPE_APPWIDGET) {
-            if (!TextUtils.isEmpty(favorite.appWidgetProvider)) {
-                values.put(Favorites.APPWIDGET_PROVIDER, favorite.appWidgetProvider);
+        if (favorite.getItemType()== Favorites.ITEM_TYPE_APPWIDGET) {
+            if (!TextUtils.isEmpty(favorite.getAppWidgetProvider())) {
+                values.put(Favorites.APPWIDGET_PROVIDER, favorite.getAppWidgetProvider());
             }
-            values.put(Favorites.APPWIDGET_ID, favorite.appWidgetId);
+            values.put(Favorites.APPWIDGET_ID, favorite.getAppWidgetId());
             values.put(LauncherSettings.Favorites.RESTORED,
                     LauncherAppWidgetInfo.FLAG_ID_NOT_VALID |
                     LauncherAppWidgetInfo.FLAG_PROVIDER_NOT_READY |
                     LauncherAppWidgetInfo.FLAG_UI_NOT_READY);
 
             // Verify placement
-            if (((favorite.cellX + favorite.spanX) > currentProfile.desktopCols)
-                    || ((favorite.cellY + favorite.spanY) > currentProfile.desktopRows)) {
+            if (((favorite.getCellX()+ favorite.getSpanX()) > currentProfile.getDesktopCols())
+                    || ((favorite.getCellY() + favorite.getSpanY()) > currentProfile.getDesktopRows())) {
                 restoreSuccessful = false;
                 throw new InvalidBackupException("Widget not in screen bounds, aborting restore");
             }
         } else {
             // Check if it is an hotseat item, that can be replaced.
             if (isReplaceableHotseatItem(favorite)
-                    && favorite.targetType != Favorite.TARGET_NONE
-                    && favorite.targetType < CommonAppTypeParser.SUPPORTED_TYPE_COUNT) {
+                    && favorite.getTargetType() != Favorite.TargetType.TARGET_NONE
+                    && favorite.getTargetType().getNumber() < CommonAppTypeParser.SUPPORTED_TYPE_COUNT) {
                 Log.e(TAG, "Added item type flag");
                 values.put(LauncherSettings.Favorites.RESTORED,
-                        1 | CommonAppTypeParser.encodeItemTypeToFlag(favorite.targetType));
+                        1 | CommonAppTypeParser.encodeItemTypeToFlag(favorite.getTargetType().getNumber()));
             } else {
                 // Let LauncherModel know we've been here.
                 values.put(LauncherSettings.Favorites.RESTORED, 1);
             }
 
             // Verify placement
-            if (favorite.container == Favorites.CONTAINER_HOTSEAT) {
-                if ((favorite.screen >= currentProfile.hotseatCount)
-                        || (favorite.screen == currentProfile.allappsRank)) {
+            if (favorite.getContainer()== Favorites.CONTAINER_HOTSEAT) {
+                if ((screen >= currentProfile.getHotseatCount())
+                        || (screen == currentProfile.getAllappsRank())) {
                     restoreSuccessful = false;
                     throw new InvalidBackupException("Item not in hotseat bounds, aborting restore");
                 }
             } else {
-                if ((favorite.cellX >= currentProfile.desktopCols)
-                        || (favorite.cellY >= currentProfile.desktopRows)) {
+                if ((favorite.getCellX() >= currentProfile.getDesktopCols())
+                        || (favorite.getCellY() >= currentProfile.getDesktopRows())) {
                     restoreSuccessful = false;
                     throw new InvalidBackupException("Item not in desktop bounds, aborting restore");
                 }
@@ -983,59 +1008,65 @@ public class LauncherBackupHelper implements BackupHelper {
 
     /** Serialize a Screen for persistence, including a checksum wrapper. */
     private Screen packScreen(Cursor c) {
-        Screen screen = new Screen();
-        screen.id = c.getLong(ID_INDEX);
-        screen.rank = c.getInt(SCREEN_RANK_INDEX);
-        return screen;
+        return
+                Screen
+                .newBuilder()
+                .setId(c.getLong(ID_INDEX))
+                .setRank(c.getInt(SCREEN_RANK_INDEX))
+                .build();
     }
 
     /** Deserialize a Screen from persistence, after verifying checksum wrapper. */
     private ContentValues unpackScreen(byte[] buffer, int dataSize)
-            throws InvalidProtocolBufferNanoException {
-        Screen screen = unpackProto(new Screen(), buffer, dataSize);
+            throws InvalidProtocolBufferException {
+        Screen screen = Screen.parseFrom(buffer);
         ContentValues values = new ContentValues();
-        values.put(WorkspaceScreens._ID, screen.id);
-        values.put(WorkspaceScreens.SCREEN_RANK, screen.rank);
+        values.put(WorkspaceScreens._ID, screen.getId());
+        values.put(WorkspaceScreens.SCREEN_RANK, screen.getRank());
         return values;
     }
 
     /** Serialize an icon Resource for persistence, including a checksum wrapper. */
     private Resource packIcon(int dpi, Bitmap icon) {
-        Resource res = new Resource();
-        res.dpi = dpi;
-        res.data = Utilities.flattenBitmap(icon);
-        return res;
+        return
+                Resource
+                .newBuilder()
+                .setDpi(dpi)
+                .setData(ByteString.copyFrom(Utilities.flattenBitmap(icon)))
+                .build();
     }
 
     /** Serialize a widget for persistence, including a checksum wrapper. */
     private Widget packWidget(int dpi, ComponentName provider, UserHandleCompat user) {
         final LauncherAppWidgetProviderInfo info =
                 LauncherModel.getProviderInfo(mContext, provider, user);
-        Widget widget = new Widget();
-        widget.provider = provider.flattenToShortString();
-        widget.label = info.label;
-        widget.configure = info.configure != null;
+        Widget.Builder builder = Widget.newBuilder();
+
+        builder
+                .setProvider(provider.flattenToShortString())
+                .setLabel(info.label)
+                .setConfigure(info.configure != null);
+
         if (info.icon != 0) {
-            widget.icon = new Resource();
             Drawable fullResIcon = mIconCache.getFullResIcon(provider.getPackageName(), info.icon);
             Bitmap icon = Utilities.createIconBitmap(fullResIcon, mContext);
-            widget.icon.data = Utilities.flattenBitmap(icon);
-            widget.icon.dpi = dpi;
+            builder.setIcon(packIcon(dpi, icon));
         }
 
         Point spans = info.getMinSpans(mIdp, mContext);
-        widget.minSpanX = spans.x;
-        widget.minSpanY = spans.y;
-
-        return widget;
-    }
+        builder
+                .setMinSpanX(spans.x)
+                .setMinSpanY(spans.y);
+        return builder.build();
+     }
 
     /**
      * Deserialize a proto after verifying checksum wrapper.
      */
-    private <T extends MessageNano> T unpackProto(T proto, byte[] buffer, int dataSize)
-            throws InvalidProtocolBufferNanoException {
-        MessageNano.mergeFrom(proto, readCheckedBytes(buffer, dataSize));
+    private <T extends MessageLite> T unpackProto(T proto, byte[] buffer, int dataSize)
+            throws InvalidProtocolBufferException {
+        proto.newBuilderForType().mergeFrom(buffer);
+        //MessageLite.mergeFrom(proto, readCheckedBytes(buffer, dataSize));
         if (DEBUG) Log.d(TAG, "unpacked proto " + proto);
         return proto;
     }
@@ -1050,9 +1081,9 @@ public class LauncherBackupHelper implements BackupHelper {
      * @return a Journal protocol buffer
      */
     private Journal readJournal(ParcelFileDescriptor oldState) {
-        Journal journal = new Journal();
+        Journal.Builder builder = Journal.newBuilder();
         if (oldState == null) {
-            return journal;
+            return builder.build();
         }
         FileInputStream inStream = new FileInputStream(oldState.getFileDescriptor());
         try {
@@ -1062,7 +1093,7 @@ public class LauncherBackupHelper implements BackupHelper {
                 byte[] buffer = new byte[availableBytes];
                 int bytesRead = 0;
                 boolean valid = false;
-                InvalidProtocolBufferNanoException lastProtoException = null;
+                InvalidProtocolBufferException lastProtoException = null;
                 while (availableBytes > 0) {
                     try {
                         // OMG what are you doing? This is crazy inefficient!
@@ -1085,15 +1116,15 @@ public class LauncherBackupHelper implements BackupHelper {
 
                     // check the buffer to see if we have a valid journal
                     try {
-                        MessageNano.mergeFrom(journal, readCheckedBytes(buffer, bytesRead));
+                        builder.mergeFrom(readCheckedBytes(buffer, bytesRead));
                         // if we are here, then we have read a valid, checksum-verified journal
                         valid = true;
                         availableBytes = 0;
                         if (VERBOSE) Log.v(TAG, "read " + bytesRead + " bytes of journal");
-                    } catch (InvalidProtocolBufferNanoException e) {
+                    } catch (InvalidProtocolBufferException e) {
                         // if we don't have the whole journal yet, mergeFrom will throw. keep going.
                         lastProtoException = e;
-                        journal.clear();
+                        builder.clear();
                     }
                 }
                 if (DEBUG) Log.d(TAG, "journal bytes read: " + bytesRead);
@@ -1110,15 +1141,15 @@ public class LauncherBackupHelper implements BackupHelper {
                 Log.w(TAG, "failed to close the journal", e);
             }
         }
-        return journal;
+        return builder.build();
     }
 
-    private void writeRowToBackup(Key key, MessageNano proto, BackupDataOutput data)
+    private void writeRowToBackup(Key key, MessageLite proto, BackupDataOutput data)
             throws IOException {
         writeRowToBackup(keyToBackupKey(key), proto, data);
     }
 
-    private void writeRowToBackup(String backupKey, MessageNano proto,
+    private void writeRowToBackup(String backupKey, MessageLite proto,
             BackupDataOutput data) throws IOException {
         byte[] blob = writeCheckedBytes(proto);
         data.writeEntityHeader(backupKey, blob.length);
@@ -1150,26 +1181,26 @@ public class LauncherBackupHelper implements BackupHelper {
     }
 
     /** Wrap a proto in a CheckedMessage and compute the checksum. */
-    private byte[] writeCheckedBytes(MessageNano proto) {
-        CheckedMessage wrapper = new CheckedMessage();
-        wrapper.payload = MessageNano.toByteArray(proto);
+    private byte[] writeCheckedBytes(MessageLite proto) {
+        CheckedMessage.Builder builder = CheckedMessage.newBuilder();
+        builder.setPayload(proto.toByteString());
         CRC32 checksum = new CRC32();
-        checksum.update(wrapper.payload);
-        wrapper.checksum = checksum.getValue();
-        return MessageNano.toByteArray(wrapper);
+        checksum.update(builder.getPayload().toByteArray());
+        builder.setChecksum(checksum.getValue());
+        return builder.build().toByteArray();
     }
 
     /** Unwrap a proto message from a CheckedMessage, verifying the checksum. */
     private static byte[] readCheckedBytes(byte[] buffer, int dataSize)
-            throws InvalidProtocolBufferNanoException {
-        CheckedMessage wrapper = new CheckedMessage();
-        MessageNano.mergeFrom(wrapper, buffer, 0, dataSize);
+            throws InvalidProtocolBufferException {
+
+        CheckedMessage wrapper = CheckedMessage.newBuilder().mergeFrom(buffer).build();
         CRC32 checksum = new CRC32();
-        checksum.update(wrapper.payload);
-        if (wrapper.checksum != checksum.getValue()) {
-            throw new InvalidProtocolBufferNanoException("checksum does not match");
+        checksum.update(wrapper.getPayload().toByteArray());
+        if (wrapper.getChecksum() != checksum.getValue()) {
+            throw new InvalidProtocolBufferException("checksum does not match");
         }
-        return wrapper.payload;
+        return wrapper.getPayload().toByteArray();
     }
 
     /**
