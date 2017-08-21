@@ -687,7 +687,6 @@ public class Folder extends LinearLayout implements DragSource, View.OnClickList
 
             prepareReveal();
 
-            anim.play(drift);
             anim.play(iconsAlpha);
             anim.play(textAlpha);
             anim.play(reveal);

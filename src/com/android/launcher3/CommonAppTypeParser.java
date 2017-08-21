@@ -119,22 +119,22 @@ public class CommonAppTypeParser implements LayoutParserCallback {
 
     public static int getResourceForItemType(int type) {
         switch (type) {
-            case Favorite.TARGET_PHONE:
+            case Favorite.TargetType.TARGET_PHONE_VALUE:
                 return R.xml.app_target_phone;
 
-            case Favorite.TARGET_MESSENGER:
+            case Favorite.TargetType.TARGET_MESSENGER_VALUE:
                 return R.xml.app_target_messenger;
 
-            case Favorite.TARGET_EMAIL:
+            case Favorite.TargetType.TARGET_EMAIL_VALUE:
                 return R.xml.app_target_email;
 
-            case Favorite.TARGET_BROWSER:
+            case Favorite.TargetType.TARGET_BROWSER_VALUE:
                 return R.xml.app_target_browser;
 
-            case Favorite.TARGET_GALLERY:
+            case Favorite.TargetType.TARGET_GALLERY_VALUE:
                 return R.xml.app_target_gallery;
 
-            case Favorite.TARGET_CAMERA:
+            case Favorite.TargetType.TARGET_CAMERA_VALUE:
                 return R.xml.app_target_camera;
 
             default:
