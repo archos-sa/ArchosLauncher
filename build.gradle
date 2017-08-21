@@ -66,6 +66,10 @@ android {
             proto.srcDirs 'protos/'
         }
     }
+
+   lintOptions {
+      abortOnError false
+   }
 }
 
 repositories {
