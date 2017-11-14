@@ -75,6 +75,7 @@ public class SearchDropTargetBar extends FrameLayout implements DragController.D
     private ButtonDropTarget mInfoDropTarget;
     private ButtonDropTarget mDeleteDropTarget;
     private ButtonDropTarget mUninstallDropTarget;
+    private ButtonDropTarget mDisableDropTarget;
 
     public SearchDropTargetBar(Context context, AttributeSet attrs) {
         this(context, attrs, 0);
@@ -93,14 +94,17 @@ public class SearchDropTargetBar extends FrameLayout implements DragController.D
         dragController.addDragListener(mInfoDropTarget);
         dragController.addDragListener(mDeleteDropTarget);
         dragController.addDragListener(mUninstallDropTarget);
+        dragController.addDragListener(mDisableDropTarget);
 
         dragController.addDropTarget(mInfoDropTarget);
         dragController.addDropTarget(mDeleteDropTarget);
         dragController.addDropTarget(mUninstallDropTarget);
+        dragController.addDropTarget(mDisableDropTarget);
 
         mInfoDropTarget.setLauncher(launcher);
         mDeleteDropTarget.setLauncher(launcher);
         mUninstallDropTarget.setLauncher(launcher);
+        mDisableDropTarget.setLauncher(launcher);
     }
 
     @Override
@@ -112,10 +116,12 @@ public class SearchDropTargetBar extends FrameLayout implements DragController.D
         mInfoDropTarget = (ButtonDropTarget) mDropTargetBar.findViewById(R.id.info_target_text);
         mDeleteDropTarget = (ButtonDropTarget) mDropTargetBar.findViewById(R.id.delete_target_text);
         mUninstallDropTarget = (ButtonDropTarget) mDropTargetBar.findViewById(R.id.uninstall_target_text);
+        mDisableDropTarget = (ButtonDropTarget) mDropTargetBar.findViewById(R.id.disable_drop_target);
 
         mInfoDropTarget.setSearchDropTargetBar(this);
         mDeleteDropTarget.setSearchDropTargetBar(this);
         mUninstallDropTarget.setSearchDropTargetBar(this);
+        mDisableDropTarget.setSearchDropTargetBar(this);
 
         // Create the various fade animations
         mDropTargetBar.setAlpha(0f);

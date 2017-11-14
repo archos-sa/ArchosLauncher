@@ -46,6 +46,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.IntentSender;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
@@ -67,7 +68,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Message;
+import android.os.RemoteException;
 import android.os.StrictMode;
 import android.os.SystemClock;
 import android.os.SystemProperties;
@@ -122,6 +125,9 @@ import com.android.launcher3.widget.PendingAddWidgetInfo;
 import com.android.launcher3.widget.WidgetHostViewLoader;
 import com.android.launcher3.widget.WidgetsContainerView;
 import com.cyanogenmod.trebuchet.settings.SettingsProvider;
+
+import org.fdroid.fdroid.privileged.IPrivilegedCallback;
+import org.fdroid.fdroid.privileged.IPrivilegedService;
 
 import java.io.File;
 import java.io.FileDescriptor;
@@ -235,6 +241,23 @@ public class Launcher extends Activity
     private final int PERMISSION_REQUEST_CODE_EXPORT_DB = 1;
 
     public static final String USER_HAS_MIGRATED = "launcher.user_migrated_from_old_data";
+
+
+    public static IPrivilegedService sPriviledgedService;
+
+    private static final String PRIVILEGED_EXTENSION_SERVICE_INTENT
+            = "org.fdroid.fdroid.privileged.IPrivilegedService";
+    public static final String PRIVILEGED_EXTENSION_PACKAGE_NAME
+            = "org.fdroid.fdroid.privileged";
+
+    ServiceConnection mServiceConnection = new ServiceConnection() {
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            sPriviledgedService = IPrivilegedService.Stub.asInterface(service);
+        }
+
+        public void onServiceDisconnected(ComponentName name) {
+        }
+    };
 
     /** The different states that Launcher can be in. */
     enum State { NONE, WORKSPACE, APPS, APPS_SPRING_LOADED, WIDGETS, WIDGETS_SPRING_LOADED }
@@ -588,7 +611,10 @@ public class Launcher extends Activity
         }
 
         super.onCreate(savedInstanceState);
-
+        Intent serviceIntent = new Intent(PRIVILEGED_EXTENSION_SERVICE_INTENT);
+        serviceIntent.setPackage(PRIVILEGED_EXTENSION_PACKAGE_NAME);
+        getApplicationContext().bindService(serviceIntent, mServiceConnection,
+                Context.BIND_AUTO_CREATE);
         LauncherAppState.setApplicationContext(getApplicationContext());
         LauncherAppState app = LauncherAppState.getInstance();
 

@@ -19,6 +19,7 @@ import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction;
 import com.android.launcher3.AppInfo;
 import com.android.launcher3.AppWidgetResizeFrame;
 import com.android.launcher3.CellLayout;
+import com.android.launcher3.DisableDropTarget;
 import com.android.launcher3.DeleteDropTarget;
 import com.android.launcher3.DragController.DragListener;
 import com.android.launcher3.DragSource;
@@ -48,6 +49,7 @@ public class LauncherAccessibilityDelegate extends AccessibilityDelegate impleme
     private static final int REMOVE = R.id.action_remove;
     private static final int INFO = R.id.action_info;
     private static final int UNINSTALL = R.id.action_uninstall;
+    private static final int DISABLE = R.id.action_disable;
     private static final int ADD_TO_WORKSPACE = R.id.action_add_to_workspace;
     private static final int MOVE = R.id.action_move;
     private static final int MOVE_TO_WORKSPACE = R.id.action_move_to_workspace;
@@ -80,6 +82,8 @@ public class LauncherAccessibilityDelegate extends AccessibilityDelegate impleme
                 launcher.getText(R.string.info_target_label)));
         mActions.put(UNINSTALL, new AccessibilityAction(UNINSTALL,
                 launcher.getText(R.string.delete_target_uninstall_label)));
+        mActions.put(DISABLE, new AccessibilityAction(DISABLE,
+                launcher.getText(R.string.delete_target_disable_label)));
         mActions.put(ADD_TO_WORKSPACE, new AccessibilityAction(ADD_TO_WORKSPACE,
                 launcher.getText(R.string.action_add_to_workspace)));
         mActions.put(MOVE, new AccessibilityAction(MOVE,
@@ -101,6 +105,9 @@ public class LauncherAccessibilityDelegate extends AccessibilityDelegate impleme
         }
         if (UninstallDropTarget.supportsDrop(host.getContext(), item)) {
             info.addAction(mActions.get(UNINSTALL));
+        }
+        if (DisableDropTarget.supportsDrop(host.getContext(), item)) {
+            info.addAction(mActions.get(DISABLE));
         }
         if (InfoDropTarget.supportsDrop(host.getContext(), item)) {
             info.addAction(mActions.get(INFO));
@@ -142,6 +149,8 @@ public class LauncherAccessibilityDelegate extends AccessibilityDelegate impleme
         } else if (action == INFO) {
             InfoDropTarget.startDetailsActivityForInfo(item, mLauncher);
             return true;
+        } else if (action == DISABLE) {
+            return DisableDropTarget.startDisableActivity(mLauncher, item);
         } else if (action == UNINSTALL) {
             return UninstallDropTarget.startUninstallActivity(mLauncher, item);
         } else if (action == MOVE) {
