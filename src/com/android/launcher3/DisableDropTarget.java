@@ -58,7 +58,10 @@ public class DisableDropTarget extends ButtonDropTarget {
             return false;
         boolean disableable = false;
         boolean cuurentlyDisabled = false;
-        ComponentName name = getAppInfoFlags(info).first;
+        Pair<ComponentName, Integer> pair = getAppInfoFlags(info);
+        if(pair==null)
+            return false;
+        ComponentName name = pair.first;
         int enabledSetting =  context.getPackageManager().getComponentEnabledSetting(name);
         // Try to prevent the user from bricking their phone
         // by not allowing disabling of apps signed with the
