@@ -29,9 +29,6 @@ android {
     compileSdkVersion 25
     buildToolsVersion '25.0.3'
 
- if (file("../mc-utils/mc_apps_common_env.gradle").exists())
-        apply from: "../mc-utils/mc_apps_common_env.gradle";
-
     defaultConfig {
         applicationId "com.android.launcher3"
         minSdkVersion 16
@@ -40,29 +37,20 @@ android {
         versionName '1.' + getFormattedDate()
     }
 
-    if (project.ext.has("ProjectKeyStoreFile")) {
-        signingConfigs {
-            release {
-                storeFile file(ProjectKeyStoreFile)
-                storePassword ProjectKeyStorePassword
-                keyAlias ProjectKeyAlias
-                keyPassword ProjectKeyPassword
-            }
-        }
-    }
+
 
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            signingConfig signingConfigs.debug
             minifyEnabled false
         }
         debug {
-            signingConfig signingConfigs.release
+            signingConfig signingConfigs.debug
             minifyEnabled false
         }
     }
     productFlavors {
-	archos {
+        archos {
             applicationId 'com.archos.launcher'
             testApplicationId 'com.archos.launcher.tests'
         }
@@ -84,6 +72,8 @@ android {
    lintOptions {
       abortOnError false
    }
+    if (file("../ArchosLauncherInternal/internal_build.gradle").exists())
+        apply from: "../ArchosLauncherInternal/internal_build.gradle";
 }
 
 repositories {
@@ -94,8 +84,6 @@ dependencies {
     compile 'com.android.support:support-v4:+'
     compile 'com.android.support:recyclerview-v7:+'
     compile 'com.google.protobuf:protobuf-lite:3.0.0'
-    compile files('libs/launcher_client.jar')
-
 }
 
 protobuf {

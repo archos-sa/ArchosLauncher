@@ -248,7 +248,7 @@ public class Launcher extends Activity
     private static final String PRIVILEGED_EXTENSION_SERVICE_INTENT
             = "org.fdroid.fdroid.privileged.IPrivilegedService";
     public static final String PRIVILEGED_EXTENSION_PACKAGE_NAME
-            = "org.fdroid.fdroid.privileged";
+            = "com.archos.priviledgedextension";
 
     ServiceConnection mServiceConnection = new ServiceConnection() {
         public void onServiceConnected(ComponentName name, IBinder service) {
